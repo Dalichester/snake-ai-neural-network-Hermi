@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake AI Training with Genetic Algorithm</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin: 0 0 20px 0;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #4ecdc4;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        #gameCanvas {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: #000;
+            box-shadow: 0 0 30px rgba(78, 205, 196, 0.3);
+        }
+        
+        .chart-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #evolutionChart {
+            width: 100%;
+            height: 150px;
+            border-radius: 5px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            transition: width 0.3s ease;
+        }
+        
+        .generation-info {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐍 Snake AI Training with Genetic Algorithm</h1>
+        
+        <div class="controls">
+            <button onclick="startEvolution()" id="startBtn">Start Evolution</button>
+            <button onclick="stopEvolution()" id="stopBtn" disabled>Stop</button>
+            <button onclick="resetEvolution()" id="resetBtn">Reset</button>
+            <button onclick="toggleSpeed()">Speed: <span id="speedText">Normal</span></button>
+            <button onclick="showBest()">Show Best</button>
+            <button onclick="hideSnakes()">Hide All</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="generation">0</div>
+                <div class="stat-label">Generation</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="bestScore">0</div>
+                <div class="stat-label">Best Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="avgScore">0</div>
+                <div class="stat-label">Avg Score</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="bestEver">0</div>
+                <div class="stat-label">Record</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="improvement">0%</div>
+                <div class="stat-label">Improvement</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="aliveSnakes">0</div>
+                <div class="stat-label">Alive</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="evolutionChart" width="600" height="150"></canvas>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+        </div>
+        <div class="generation-info" id="generationInfo">Neural network evolution in progress</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="800" height="800"></canvas>
+
+    <script>
+        const CONFIG = {
+            CANVAS_WIDTH: 800,
+            CANVAS_HEIGHT: 800,
+            GRID_SIZE: 20,
+            POPULATION_SIZE: 100,
+            ELITE_PERCENT: 0.1,
+            MUTATION_RATE: 0.08,
+            CROSSOVER_RATE: 0.8,
+            MAX_STEPS_MULTIPLIER: 150
+        };
+        
+        class SnakeNN {
+            constructor() {
+                this.weights = this.initialiseWeights();
+            }
+            
+            initialiseWeights() {
+                const weights = [];
+                for (let i = 0; i < 15 * 10; i++) {
+                    weights.push((Math.random() - 0.5) * 2);
+                }
+                for (let i = 0; i < 10 * 4; i++) {
+                    weights.push((Math.random() - 0.5) * 2);
+                }
+                return weights;
+            }
+            
+            predict(inputs) {
+                inputs.push(1);
+                
+                const hidden = [];
+                for (let i = 0; i < 10; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < 15; j++) {
+                        sum += inputs[j] * this.weights[i * 15 + j];
+                    }
+                    hidden.push(Math.tanh(sum));
+                }
+                
+                const outputs = [];
+                for (let i = 0; i < 4; i++) {
+                    let sum = 0;
+                    for (let j = 0; j < 10; j++) {
+                        sum += hidden[j] * this.weights[150 + i * 10 + j];
+                    }
+                    outputs.push(Math.tanh(sum));
+                }
+                
+                return outputs;
+            }
+            
+            mutate() {
+                for (let i = 0; i < this.weights.length; i++) {
+                    if (Math.random() < CONFIG.MUTATION_RATE) {
+                        this.weights[i] += (Math.random() - 0.5) * 0.4;
+                        this.weights[i] = Math.max(-3, Math.min(3, this.weights[i]));
+                    }
+                }
+            }
+            
+            crossover(other) {
+                const child = new SnakeNN();
+                for (let i = 0; i < this.weights.length; i++) {
+                    if (Math.random() < CONFIG.CROSSOVER_RATE) {
+                        child.weights[i] = Math.random() < 0.5 ? this.weights[i] : other.weights[i];
+                    } else {
+                        child.weights[i] = this.weights[i];
+                    }
+                }
+                return child;
+            }
+            
+            copy() {
+                const copy = new SnakeNN();
+                copy.weights = [...this.weights];
+                return copy;
+            }
+        }
+        
+        class Snake {
+            constructor() {
+                this.brain = new SnakeNN();
+                this.reset();
+            }
+            
+            reset() {
+                const center = Math.floor(CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE / 2);
+                this.body = [{x: center, y: center}];
+                this.direction = {x: 1, y: 0};
+                this.score = 0;
+                this.steps = 0;
+                this.maxSteps = CONFIG.MAX_STEPS_MULTIPLIER;
+                this.alive = true;
+                this.fitness = 0;
+                this.placeFood();
+            }
+            
+            placeFood() {
+                const gridWidth = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+                const gridHeight = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+                
+                do {
+                    this.food = {
+                        x: Math.floor(Math.random() * gridWidth),
+                        y: Math.floor(Math.random() * gridHeight)
+                    };
+                } while (this.body.some(segment => segment.x === this.food.x && segment.y === this.food.y));
+            }
+            
+            getInputs() {
+                const head = this.body[0];
+                const gridWidth = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+                const gridHeight = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+                const inputs = [];
+                
+                const directions = [
+                    {x: 0, y: -1}, {x: 1, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}
+                ];
+                
+                // Enhanced collision detection with lookahead
+                for (let dir of directions) {
+                    let minDistance = 4;
+                    for (let step = 1; step <= 3; step++) {
+                        const x = head.x + dir.x * step;
+                        const y = head.y + dir.y * step;
+                        
+                        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight ||
+                            this.body.some(segment => segment.x === x && segment.y === y)) {
+                            minDistance = step;
+                            break;
+                        }
+                    }
+                    inputs.push(1.0 / minDistance);
+                }
+                
+                // Space availability
+                for (let dir of directions) {
+                    const spaceCount = this.countSpace(head.x + dir.x, head.y + dir.y);
+                    inputs.push(spaceCount / 10);
+                }
+                
+                // Food direction
+                for (let dir of directions) {
+                    let foodInDirection = 0;
+                    let x = head.x + dir.x;
+                    let y = head.y + dir.y;
+                    
+                    while (x >= 0 && x < gridWidth && y >= 0 && y < gridHeight) {
+                        if (x === this.food.x && y === this.food.y) {
+                            foodInDirection = 1;
+                            break;
+                        }
+                        x += dir.x;
+                        y += dir.y;
+                    }
+                    inputs.push(foodInDirection);
+                }
+                
+                // Strategic info
+                inputs.push(head.x / gridWidth);
+                inputs.push(head.y / gridHeight);
+                inputs.push(this.body.length / (gridWidth * gridHeight));
+                
+                return inputs;
+            }
+            
+            countSpace(startX, startY) {
+                const gridWidth = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+                const gridHeight = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+                
+                if (startX < 0 || startX >= gridWidth || startY < 0 || startY >= gridHeight ||
+                    this.body.some(segment => segment.x === startX && segment.y === startY)) {
+                    return 0;
+                }
+                
+                const visited = new Set();
+                const queue = [{x: startX, y: startY}];
+                let count = 0;
+                
+                while (queue.length > 0 && count < 10) {
+                    const pos = queue.shift();
+                    const key = `${pos.x},${pos.y}`;
+                    
+                    if (visited.has(key) || pos.x < 0 || pos.x >= gridWidth || 
+                        pos.y < 0 || pos.y >= gridHeight ||
+                        this.body.some(segment => segment.x === pos.x && segment.y === pos.y)) {
+                        continue;
+                    }
+                    
+                    visited.add(key);
+                    count++;
+                    
+                    queue.push(
+                        {x: pos.x + 1, y: pos.y},
+                        {x: pos.x - 1, y: pos.y},
+                        {x: pos.x, y: pos.y + 1},
+                        {x: pos.x, y: pos.y - 1}
+                    );
+                }
+                
+                return count;
+            }
+            
+            update() {
+                if (!this.alive) return;
+                
+                this.steps++;
+                this.maxSteps = CONFIG.MAX_STEPS_MULTIPLIER + this.score * CONFIG.MAX_STEPS_MULTIPLIER;
+                
+                if (this.steps > this.maxSteps) {
+                    this.alive = false;
+                    return;
+                }
+                
+                const inputs = this.getInputs();
+                const outputs = this.brain.predict(inputs);
+                
+                let bestDirection = 0;
+                let maxOutput = -Infinity;
+                
+                const directions = [
+                    {x: 0, y: -1}, {x: 1, y: 0}, {x: 0, y: 1}, {x: -1, y: 0}
+                ];
+                
+                // Safety check outputs
+                for (let i = 0; i < 4; i++) {
+                    let adjustedOutput = outputs[i];
+                    
+                    const newX = this.body[0].x + directions[i].x;
+                    const newY = this.body[0].y + directions[i].y;
+                    const gridWidth = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+                    const gridHeight = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+                    
+                    if (newX < 0 || newX >= gridWidth || newY < 0 || newY >= gridHeight ||
+                        this.body.some(segment => segment.x === newX && segment.y === newY)) {
+                        adjustedOutput = -999;
+                    } else {
+                        const space = this.countSpace(newX, newY);
+                        if (space < this.body.length) {
+                            adjustedOutput -= 2;
+                        }
+                    }
+                    
+                    if (adjustedOutput > maxOutput) {
+                        maxOutput = adjustedOutput;
+                        bestDirection = i;
+                    }
+                }
+                
+                const newDir = directions[bestDirection];
+                
+                if (this.body.length > 1) {
+                    const neck = this.body[1];
+                    const head = this.body[0];
+                    if (!(head.x + newDir.x === neck.x && head.y + newDir.y === neck.y)) {
+                        this.direction = newDir;
+                    }
+                } else {
+                    this.direction = newDir;
+                }
+                
+                const head = this.body[0];
+                const newHead = {
+                    x: head.x + this.direction.x,
+                    y: head.y + this.direction.y
+                };
+                
+                const gridWidth = CONFIG.CANVAS_WIDTH / CONFIG.GRID_SIZE;
+                const gridHeight = CONFIG.CANVAS_HEIGHT / CONFIG.GRID_SIZE;
+                
+                if (newHead.x < 0 || newHead.x >= gridWidth || newHead.y < 0 || newHead.y >= gridHeight ||
+                    this.body.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+                    this.alive = false;
+                    return;
+                }
+                
+                this.body.unshift(newHead);
+                
+                if (newHead.x === this.food.x && newHead.y === this.food.y) {
+                    this.score++;
+                    this.placeFood();
+                } else {
+                    this.body.pop();
+                }
+                
+                this.fitness = this.score * this.score * 1500 + this.steps;
+            }
+            
+            draw(ctx) {
+                ctx.fillStyle = '#ffeb3b';
+                ctx.fillRect(
+                    this.food.x * CONFIG.GRID_SIZE + 2,
+                    this.food.y * CONFIG.GRID_SIZE + 2,
+                    CONFIG.GRID_SIZE - 4,
+                    CONFIG.GRID_SIZE - 4
+                );
+                
+                for (let i = 0; i < this.body.length; i++) {
+                    ctx.fillStyle = i === 0 ? '#ff6b6b' : '#4ecdc4';
+                    ctx.fillRect(
+                        this.body[i].x * CONFIG.GRID_SIZE + 1,
+                        this.body[i].y * CONFIG.GRID_SIZE + 1,
+                        CONFIG.GRID_SIZE - 2,
+                        CONFIG.GRID_SIZE - 2
+                    );
+                }
+            }
+        }
+        
+        class GeneticAlgorithm {
+            constructor() {
+                this.population = [];
+                this.generation = 0;
+                this.bestEver = 0;
+                this.running = false;
+                this.speed = 5;
+                this.evolutionData = [];
+                this.recordGenerations = [];
+                this.initialise();
+            }
+            
+            initialise() {
+                this.population = [];
+                for (let i = 0; i < CONFIG.POPULATION_SIZE; i++) {
+                    this.population.push(new Snake());
+                }
+                this.generation = 0;
+                this.evolutionData = [{generation: 0, bestScore: 0, avgScore: 0}];
+                this.recordGenerations = [];
+            }
+            
+            update() {
+                if (!this.running) return;
+                
+                for (let snake of this.population) {
+                    snake.update();
+                }
+                
+                if (this.population.filter(s => s.alive).length === 0) {
+                    this.nextGeneration();
+                }
+            }
+            
+            nextGeneration() {
+                this.population.sort((a, b) => b.fitness - a.fitness);
+                
+                const bestScore = this.population[0].score;
+                const avgScore = this.population.reduce((sum, s) => sum + s.score, 0) / this.population.length;
+                
+                // Check for new record
+                if (bestScore > this.bestEver) {
+                    this.bestEver = bestScore;
+                    this.recordGenerations.push({generation: this.generation + 1, score: bestScore});
+                }
+                
+                this.generation++;
+                
+                this.evolutionData.push({
+                    generation: this.generation,
+                    bestScore: bestScore,
+                    avgScore: avgScore
+                });
+                
+                const newPopulation = [];
+                const eliteCount = Math.floor(CONFIG.POPULATION_SIZE * CONFIG.ELITE_PERCENT);
+                
+                for (let i = 0; i < eliteCount; i++) {
+                    const elite = new Snake();
+                    elite.brain = this.population[i].brain.copy();
+                    newPopulation.push(elite);
+                }
+                
+                while (newPopulation.length < CONFIG.POPULATION_SIZE) {
+                    const parent1 = this.selectParent();
+                    const parent2 = this.selectParent();
+                    
+                    const child = new Snake();
+                    child.brain = parent1.brain.crossover(parent2.brain);
+                    child.brain.mutate();
+                    
+                    newPopulation.push(child);
+                }
+                
+                this.population = newPopulation;
+            }
+            
+            selectParent() {
+                const tournamentSize = 5;
+                let best = null;
+                
+                for (let i = 0; i < tournamentSize; i++) {
+                    const candidate = this.population[Math.floor(Math.random() * Math.min(50, this.population.length))];
+                    if (best === null || candidate.fitness > best.fitness) {
+                        best = candidate;
+                    }
+                }
+                
+                return best;
+            }
+            
+            getBestScore() {
+                return Math.max(...this.population.map(s => s.score));
+            }
+            
+            getAverageScore() {
+                return (this.population.reduce((sum, s) => sum + s.score, 0) / this.population.length).toFixed(1);
+            }
+            
+            getImprovement() {
+                if (this.evolutionData.length < 10) return "0%";
+                const recent = this.evolutionData.slice(-5);
+                const old = this.evolutionData.slice(-10, -5);
+                const recentAvg = recent.reduce((sum, d) => sum + d.bestScore, 0) / recent.length;
+                const oldAvg = old.reduce((sum, d) => sum + d.bestScore, 0) / old.length;
+                const improvement = ((recentAvg - oldAvg) / Math.max(oldAvg, 1)) * 100;
+                return improvement > 0 ? `+${improvement.toFixed(1)}%` : `${improvement.toFixed(1)}%`;
+            }
+            
+            getAliveCount() {
+                return this.population.filter(s => s.alive).length;
+            }
+        }
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const ga = new GeneticAlgorithm();
+        let gameLoop;
+        let showBestSnake = false;
+        
+        // Add click handler for chart
+        document.getElementById('evolutionChart').addEventListener('click', function(event) {
+            const rect = this.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const data = ga.evolutionData;
+            if (data.length < 2) return;
+            
+            const width = this.width - 80;
+            const height = this.height - 60;
+            const startX = 40;
+            const startY = 30;
+            const maxScore = Math.max(...data.map(d => d.bestScore), 1);
+            const maxGeneration = Math.max(...data.map(d => d.generation), 1);
+            
+            // Check if click is within chart area
+            if (x >= startX && x <= startX + width && y >= startY && y <= startY + height) {
+                // Calculate generation and score from click position
+                const clickGeneration = Math.round((x - startX) / width * maxGeneration);
+                const clickScore = Math.round((1 - (y - startY) / height) * maxScore);
+                
+                // Find the closest actual data point
+                let closestData = data[0];
+                let minDistance = Math.abs(data[0].generation - clickGeneration);
+                
+                for (let d of data) {
+                    const distance = Math.abs(d.generation - clickGeneration);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestData = d;
+                    }
+                }
+                
+                alert(`Generation: ${closestData.generation}\nBest Score: ${closestData.bestScore}\nAverage Score: ${closestData.avgScore.toFixed(1)}`);
+            }
+            
+            // Check if click is on a record star
+            for (let record of ga.recordGenerations) {
+                const recordData = data.find(d => d.generation === record.generation);
+                if (recordData) {
+                    const starX = startX + (width * recordData.generation / maxGeneration);
+                    const starY = startY + height - (height * recordData.bestScore / maxScore);
+                    
+                    // Check if click is within star area (16x16 pixels around star)
+                    if (x >= starX - 8 && x <= starX + 8 && y >= starY - 8 && y <= starY + 8) {
+                        alert(`🌟 NEW RECORD! 🌟\nGeneration: ${record.generation}\nRecord Score: ${record.score}`);
+                        return; // Exit early if star was clicked
+                    }
+                }
+            }
+        });
+        
+        function startEvolution() {
+            ga.running = true;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            
+            gameLoop = setInterval(() => {
+                ga.update();
+                draw();
+                updateUI();
+            }, ga.speed);
+        }
+        
+        function stopEvolution() {
+            ga.running = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            if (gameLoop) clearInterval(gameLoop);
+        }
+        
+        function resetEvolution() {
+            stopEvolution();
+            ga.initialise();
+            draw();
+            updateUI();
+        }
+        
+        function toggleSpeed() {
+            if (ga.speed === 5) {
+                ga.speed = 20;
+                document.getElementById('speedText').textContent = 'Slow';
+            } else if (ga.speed === 20) {
+                ga.speed = 1;
+                document.getElementById('speedText').textContent = 'Ultra';
+            } else {
+                ga.speed = 5;
+                document.getElementById('speedText').textContent = 'Normal';
+            }
+            
+            if (ga.running) {
+                clearInterval(gameLoop);
+                gameLoop = setInterval(() => {
+                    ga.update();
+                    draw();
+                    updateUI();
+                }, ga.speed);
+            }
+        }
+        
+        function showBest() {
+            showBestSnake = true;
+        }
+        
+        function hideSnakes() {
+            showBestSnake = false;
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, CONFIG.CANVAS_WIDTH, CONFIG.CANVAS_HEIGHT);
+            
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= CONFIG.CANVAS_WIDTH; x += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.CANVAS_HEIGHT);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= CONFIG.CANVAS_HEIGHT; y += CONFIG.GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.CANVAS_WIDTH, y);
+                ctx.stroke();
+            }
+            
+            if (showBestSnake) {
+                const aliveSnakes = ga.population.filter(s => s.alive);
+                if (aliveSnakes.length > 0) {
+                    const best = aliveSnakes.reduce((best, snake) => 
+                        snake.fitness > best.fitness ? snake : best);
+                    best.draw(ctx);
+                    
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '16px Courier New';
+                    ctx.fillText(`Best: Score ${best.score} | Length ${best.body.length}`, 10, 25);
+                }
+            } else {
+                ctx.fillStyle = '#666';
+                ctx.font = '18px Courier New';
+                ctx.fillText(`${ga.getAliveCount()} enhanced snakes evolving...`, 10, 30);
+            }
+        }
+        
+        function updateUI() {
+            document.getElementById('generation').textContent = ga.generation;
+            document.getElementById('bestScore').textContent = ga.getBestScore();
+            document.getElementById('avgScore').textContent = ga.getAverageScore();
+            document.getElementById('bestEver').textContent = ga.bestEver;
+            document.getElementById('improvement').textContent = ga.getImprovement();
+            document.getElementById('aliveSnakes').textContent = ga.getAliveCount();
+            
+            const progress = (CONFIG.POPULATION_SIZE - ga.getAliveCount()) / CONFIG.POPULATION_SIZE * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            updateChart();
+        }
+        
+        function updateChart() {
+            const chartCanvas = document.getElementById('evolutionChart');
+            const chartCtx = chartCanvas.getContext('2d');
+            
+            chartCtx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+            
+            if (ga.evolutionData.length < 2) return;
+            
+            const data = ga.evolutionData;
+            const width = chartCanvas.width - 80;
+            const height = chartCanvas.height - 60;
+            const startX = 40;
+            const startY = 30;
+            
+            const maxScore = Math.max(...data.map(d => d.bestScore), 1);
+            const maxGeneration = Math.max(...data.map(d => d.generation), 1);
+            
+            // Draw axes
+            chartCtx.strokeStyle = '#666';
+            chartCtx.lineWidth = 1;
+            
+            // Y-axis (Score)
+            chartCtx.beginPath();
+            chartCtx.moveTo(startX, startY);
+            chartCtx.lineTo(startX, startY + height);
+            chartCtx.stroke();
+            
+            // X-axis (Generation)
+            chartCtx.beginPath();
+            chartCtx.moveTo(startX, startY + height);
+            chartCtx.lineTo(startX + width, startY + height);
+            chartCtx.stroke();
+            
+            // Y-axis labels
+            chartCtx.fillStyle = '#fff';
+            chartCtx.font = '10px Courier New';
+            for (let i = 0; i <= 5; i++) {
+                const score = (maxScore * i / 5).toFixed(0);
+                const y = startY + height - (height * i / 5);
+                chartCtx.fillText(score, 5, y + 4);
+            }
+            
+            // X-axis labels (Generation numbers)
+            for (let i = 0; i <= 10; i++) {
+                const generation = Math.floor(maxGeneration * i / 10);
+                const x = startX + (width * i / 10);
+                chartCtx.fillText(generation.toString(), x - 8, startY + height + 15);
+            }
+            
+            chartCtx.strokeStyle = '#ff6b6b';
+            chartCtx.lineWidth = 3;
+            chartCtx.beginPath();
+            
+            for (let i = 0; i < data.length; i++) {
+                const x = startX + (width * data[i].generation / maxGeneration);
+                const y = startY + height - (height * data[i].bestScore / maxScore);
+                
+                if (i === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            }
+            chartCtx.stroke();
+            
+            chartCtx.strokeStyle = '#4ecdc4';
+            chartCtx.lineWidth = 2;
+            chartCtx.beginPath();
+            
+            for (let i = 0; i < data.length; i++) {
+                const x = startX + (width * data[i].generation / maxGeneration);
+                const y = startY + height - (height * data[i].avgScore / maxScore);
+                
+                if (i === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            }
+            chartCtx.stroke();
+            
+            // Draw stars for record generations
+            chartCtx.fillStyle = '#ffeb3b';
+            chartCtx.font = '16px Arial';
+            for (let record of ga.recordGenerations) {
+                const recordData = data.find(d => d.generation === record.generation);
+                if (recordData) {
+                    const x = startX + (width * recordData.generation / maxGeneration);
+                    const y = startY + height - (height * recordData.bestScore / maxScore);
+                    
+                    // Draw clickable star
+                    chartCtx.fillText('★', x - 8, y + 5);
+                }
+            }
+            
+            chartCtx.fillStyle = '#ff6b6b';
+            chartCtx.font = '12px Courier New';
+            chartCtx.fillText('■ Best Score', 25, 15);
+            chartCtx.fillStyle = '#4ecdc4';
+            chartCtx.fillText('■ Average Score', 25, 30);
+            chartCtx.fillStyle = '#fff';
+            chartCtx.fillText(`Max: ${maxScore}`, 25, 45);
+        }
+        
+        draw();
+        updateUI();
+    </script>
+</body>
